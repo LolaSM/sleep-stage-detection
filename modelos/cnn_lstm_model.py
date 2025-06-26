@@ -5,7 +5,7 @@ Arquitectura CNN-LSTM parametrizable + utilidades de compilación y callbacks.
 import tensorflow as tf
 from tensorflow.keras.layers import (Input, Conv1D, ReLU, BatchNormalization,
                                      AveragePooling1D, GlobalAveragePooling1D,
-                                     Dense, TimeDistributed, LSTM)
+                                     Dense, TimeDistributed, LSTM, Dropout)
 from tensorflow.keras.models import Model
 from modelos.metrics import F1Score
 
@@ -18,7 +18,8 @@ def build_cnn_lstm_flexible(seq_len: int,
                             filters_init: int = 8,
                             kernel_size: int = 100,
                             lstm_units: int = 64,
-                            dense_units: int = 50) -> Model:
+                            dense_units: int = 50,
+                            dropout_rate: float = 0.0) -> Model:
     """
     Parameters
     ----------
@@ -28,6 +29,7 @@ def build_cnn_lstm_flexible(seq_len: int,
     kernel_size  : tamaño kernel Conv1D
     lstm_units   : unidades de la capa LSTM
     dense_units  : tamaño del embedding intermedio
+    dropout_rate : tasa de dropout (0-1) para regularización
     """
     # --- Encoder CNN ---
     inp_cnn = Input(shape=input_shape)
@@ -37,16 +39,20 @@ def build_cnn_lstm_flexible(seq_len: int,
         x = Conv1D(filters, kernel_size=kernel_size, padding="same")(x)
         x = ReLU()(x)
         x = BatchNormalization()(x)
+        x = Dropout(dropout_rate)(x)  # Añadir dropout después de cada bloque convolucional
         x = AveragePooling1D(2)(x)
         filters *= 2
     x = GlobalAveragePooling1D()(x)
     x = Dense(dense_units, activation="relu")(x)
+    x = Dropout(dropout_rate)(x)  # Añadir dropout después de la capa densa
     encoder = Model(inp_cnn, x, name="Encoder")
 
     # --- Secuencia ---
     seq_in = Input(shape=(seq_len, *input_shape))      # (L, time, chan)
     y = TimeDistributed(encoder)(seq_in)               # (L, dense_units)
-    y = LSTM(lstm_units)(y)
+    # LSTM con dropout interno
+    y = LSTM(lstm_units, dropout=dropout_rate, recurrent_dropout=dropout_rate/2)(y)
+    y = Dropout(dropout_rate)(y)  # Dropout adicional después de LSTM
     out = Dense(5, activation="softmax", dtype="float32")(y)
 
     return Model(seq_in, out, name="CNN_LSTM")
