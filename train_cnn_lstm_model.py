@@ -204,7 +204,7 @@ if os.path.exists(GRID_RESULTS_FILE):
 all_combinations = list(combinations(param_grid))
 total_combinations = len(all_combinations)
 
-print(f"\n───── GRID SEARCH (máx 20 ep / ES=5) ─────")
+print(f"\n GRID SEARCH (máx 20 ep / ES=5) ")
 print(f"\nTotal: {total_combinations} configuraciones. Comenzando desde la #{start_idx}")
 
 for i, hp in enumerate(all_combinations[start_idx-1:], start_idx):
